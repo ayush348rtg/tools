@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HTML to Base64 Script Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; background: #f4f4f9; }
+    textarea { width: 100%; height: 200px; padding: 10px; font-family: monospace; }
+    button { margin-top: 10px; padding: 10px 20px; background: #4a90e2; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #357ab8; }
+    pre { background: #fff; padding: 15px; border: 1px solid #ccc; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+    #copyBtn { background: #28a745; }
+    #copyBtn:hover { background: #1e7e34; }
+  </style>
+</head>
+<body>
+
+  <h2>HTML → Base64 Script Generator</h2>
+  <p>Paste your HTML code below:</p>
+  <textarea id="htmlInput" placeholder="Paste HTML code here..."></textarea>
+  <br>
+  <button onclick="generateScript()">Generate Full HTML</button>
+  <button id="copyBtn" onclick="copyScript()">Copy Output</button>
+
+  <h3>Resulting HTML Document:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    let fullOutput = "";
+
+    function generateScript() {
+      const htmlCode = document.getElementById("htmlInput").value;
+      if (!htmlCode.trim()) {
+        alert("Please paste some HTML code first!");
+        return;
+      }
+
+      // Encode HTML to Base64
+      const base64 = btoa(unescape(encodeURIComponent(htmlCode)));
+
+      // Break into chunks of ~60 characters for readability
+      const chunkSize = 60;
+      let chunks = [];
+      for (let i = 0; i < base64.length; i += chunkSize) {
+        chunks.push('"' + base64.slice(i, i + chunkSize) + '"');
+      }
+      const joined = chunks.join(" +\n      ");
+
+      // Build full HTML document output
+      fullOutput =
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Injected HTML</title>
+</head>
+<body>
+  <script>
+    document.write(decodeURIComponent(escape(atob(
+      ${joined}
+    ))));
+  <\/script>
+</body>
+</html>`;
+
+      document.getElementById("output").textContent = fullOutput;
+    }
+
+    function copyScript() {
+      if (!fullOutput) {
+        alert("Please generate the HTML first!");
+        return;
+      }
+      navigator.clipboard.writeText(fullOutput).then(() => {
+        alert("Full HTML copied to clipboard!");
+      }).catch(err => {
+        alert("Failed to copy: " + err);
+      });
+    }
+  </script>
+
+</body>
+</html>
