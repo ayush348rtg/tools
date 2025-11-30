@@ -39,7 +39,7 @@
       const base64 = btoa(unescape(encodeURIComponent(htmlCode)));
 
       // Break into chunks of ~60 characters for readability
-      const chunkSize = 60;
+      const chunkSize = 100;
       let chunks = [];
       for (let i = 0; i < base64.length; i += chunkSize) {
         chunks.push('"' + base64.slice(i, i + chunkSize) + '"');
