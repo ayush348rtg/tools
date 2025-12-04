@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Gmail Dot Variants with Pagination + Index Lookup</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #111;
+        color: #eee;
+        padding: 20px;
+      }
+
+      input {
+        padding: 10px 14px;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #222;
+        color: #eee;
+        width: 100%;
+      }
+
+      .card {
+        background: #161b22;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+      }
+
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .field {
+        margin: 20px;
+        flex: 1;
+        min-width: 240px;
+        max-width: 500px;
+      }
+
+      .results {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 6px;
+        max-height: 420px;
+        overflow: auto;
+      }
+
+      .pill {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #0d1117;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .email {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        
+      }
+
+      .copy {
+        cursor: pointer;
+        color: #58a6ff;
+        font-size: 12px;
+      }
+
+      .stat {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #9fb0c0;
+      }
+
+      .pager {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .pager button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #58a6ff;
+        color: #000;
+        cursor: pointer;
+      }
+      
+      input {
+        width: 250px;
+        }
+    </style>
+  </head>
+  <body>
+    <h2>Gmail dot variants (200 per page)</h2>
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label>Enter Gmail address</label>
+          <input id="email" type="text" placeholder="example@gmail.com">
+          <div class="stat">Total: <span id="count">0</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Paste dotted Gmail to find its index</label>
+          <input id="lookup" type="text" placeholder="example@gmail.com">
+          <div id="indexResult" class="stat"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="results" class="results"></div>
+      <div class="pager">
+        <button id="prev5">Back ×5</button>
+        <button id="prev">Back</button>
+        <span id="pageInfo">[0/0]</span>
+        <button id="next">Next</button>
+        <button id="next5">Next ×5</button>
+      </div>
+    </div>
+    <script>
+      function parseEmail(email) {
+        const s = (email || "").trim().toLowerCase();
+        const at = s.indexOf("@");
+        if (at === -1) return {
+          local: "",
+          domain: ""
+        };
+        return {
+          local: s.slice(0, at),
+          domain: s.slice(at + 1)
+        };
+      }
+
+      function baseFromLocal(local) {
+        return (local || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      }
+
+      function combinations(n, k) {
+        const res = [];
+
+        function backtrack(start, combo) {
+          if (combo.length === k) {
+            res.push([...combo]);
+            return;
+          }
+          for (let i = start; i <= n - 1; i++) {
+            combo.push(i);
+            backtrack(i + 1, combo);
+            combo.pop();
+          }
+        }
+        backtrack(1, []);
+        return res;
+      }
+
+      function insertDots(base, posArr) {
+        let out = "",
+          p = 0;
+        for (let i = 1; i <= base.length; i++) {
+          out += base[i - 1];
+          if (p < posArr.length && posArr[p] === i) {
+            out += ".";
+            p++;
+          }
+        }
+        return out;
+      }
+
+      function generateOrdered(base, domain) {
+        const n = base.length;
+        const emails = [];
+        for (let dots = 1; dots <= n - 1; dots++) {
+          const combs = combinations(n, dots);
+          for (const c of combs) {
+            emails.push(insertDots(base, c) + "@" + domain);
+          }
+        }
+        return emails;
+      }
+      let lastList = [],
+        currentPage = 0,
+        pageSize = 200;
+
+      function renderPage() {
+        const res = document.getElementById("results");
+        res.innerHTML = "";
+        if (lastList.length === 0) {
+          document.getElementById("pageInfo").textContent = "[0/0]";
+          return;
+        }
+        const totalPages = Math.ceil(lastList.length / pageSize);
+        if (currentPage >= totalPages) currentPage = totalPages - 1;
+        if (currentPage < 0) currentPage = 0;
+        const start = currentPage * pageSize;
+        const end = Math.min(start + pageSize, lastList.length);
+        for (let i = start; i < end; i++) {
+          const email = lastList[i];
+          const div = document.createElement("div");
+          div.className = "pill";
+          const span = document.createElement("span");
+          span.className = "email";
+          span.textContent = `${i+1}. ${email}`;
+          const copy = document.createElement("span");
+          copy.className = "copy";
+          copy.textContent = "Copy";
+          copy.onclick = async () => {
+            await navigator.clipboard.writeText(email);
+            copy.textContent = "Copied";
+            setTimeout(() => copy.textContent = "Copy", 1000);
+          };
+          div.appendChild(span);
+          div.appendChild(copy);
+          res.appendChild(div);
+        }
+        document.getElementById("pageInfo").textContent = `[${currentPage+1}/${totalPages}]`;
+      }
+
+      function compute() {
+        const {
+          local,
+          domain
+        } = parseEmail(document.getElementById("email").value);
+        if (!local || !domain) {
+          lastList = [];
+          document.getElementById("count").textContent = "0";
+          renderPage();
+          return;
+        }
+        const base = baseFromLocal(local);
+        lastList = generateOrdered(base, domain);
+        document.getElementById("count").textContent = lastList.length;
+        currentPage = 0;
+        renderPage();
+      }
+
+      function findIndex() {
+        const input = document.getElementById("lookup").value.trim().toLowerCase();
+        if (!input) {
+          document.getElementById("indexResult").textContent = "";
+          return;
+        }
+        const idx = lastList.indexOf(input);
+        if (idx === -1) {
+          document.getElementById("indexResult").textContent = "Not found in generated list.";
+        } else {
+          const {
+            local
+          } = parseEmail(input);
+          const positions = [];
+          for (let i = 0; i < local.length; i++) {
+            if (local[i] === ".") positions.push(i);
+          }
+          document.getElementById("indexResult").textContent = `Index: ${idx+1} | Dots: ${positions.length} | Positions after chars: ${positions.join(",")}`;
+        }
+      }
+      document.getElementById("email").addEventListener("input", compute);
+      document.getElementById("lookup").addEventListener("input", findIndex);
+      document.getElementById("prev").addEventListener("click", () => {
+        currentPage--;
+        renderPage();
+      });
+      document.getElementById("next").addEventListener("click", () => {
+        currentPage++;
+        renderPage();
+      });
+      document.getElementById("prev5").addEventListener("click", () => {
+        currentPage -= 5;
+        renderPage();
+      });
+      document.getElementById("next5").addEventListener("click", () => {
+        currentPage += 5;
+        renderPage();
+      });
+    </script>
+  </body>
+</html>
