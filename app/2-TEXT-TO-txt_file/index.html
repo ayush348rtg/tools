@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Text to .txt downloader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 24px; line-height: 1.5; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin-bottom: 12px; }
+    label { display: block; margin: 12px 0 6px; font-weight: 600; }
+    input[type="text"], textarea {
+      width: 100%; padding: 10px; border: 1px solid #bbb; border-radius: 8px; font-size: 1rem;
+    }
+    textarea { min-height: 260px; resize: vertical; }
+    .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+    .row input[type="text"] { flex: 1; }
+    button {
+      padding: 10px 16px; border: none; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { background: #9aa7cc; cursor: not-allowed; }
+    .tip { font-size: 0.9rem; color: #555; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Paste text and download as .txt</h1>
+
+    <label for="textInput">Your text</label>
+    <textarea id="textInput" placeholder="Paste or type your text here..."></textarea>
+
+    <div class="row">
+      <input id="fileName" type="text" placeholder="Filename (optional, e.g., notes)" />
+      <button id="downloadBtn">Download .txt</button>
+    </div>
+
+    <p class="tip">If no filename is provided, it will save as "text_[date]_[time].txt".</p>
+  </div>
+
+  <script>
+    const textInput = document.getElementById('textInput');
+    const fileNameInput = document.getElementById('fileName');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function getDateTimeString() {
+      const now = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+
+      const day = pad(now.getDate());
+      const month = pad(now.getMonth() + 1);
+      const year = now.getFullYear();
+
+      const hours = pad(now.getHours());
+      const minutes = pad(now.getMinutes());
+      const seconds = pad(now.getSeconds());
+
+      return `${day}${month}${year}_${hours}${minutes}${seconds}`;
+    }
+
+    function downloadTextFile() {
+      const content = textInput.value || '';
+      const baseName = (fileNameInput.value || 'text').trim();
+      const timestamp = getDateTimeString();
+      const name = `${baseName}_${timestamp}.txt`;
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    downloadBtn.addEventListener('click', downloadTextFile);
+  </script>
+</body>
+</html>
