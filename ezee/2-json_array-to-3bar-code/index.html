@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Encode/Decode Tool</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #121212;//121212
+      margin: 0;
+      padding: 10px;
+      color: #e0e0e0;
+    }
+    h2, h3 { margin: 10px 0; color: #ffffff; }
+textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;              /* your custom padding */
+  font-family: monospace;
+  border: 1px solid #333;
+  border-radius: 8px;
+  resize: vertical;
+  background: #1e1e1e;
+  color: #e0e0e0;
+
+  box-sizing: border-box;     /* ensures padding is included in width/height */
+  line-height: 1.4;           /* improves vertical spacing */
+  overflow: auto;             /* keeps scrollbars consistent */
+}
+
+    pre {
+      background: #1e1e1e;
+      padding: 15px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      white-space: pre;
+      overflow: auto;
+      min-height: 120px;
+      color: #b0e0ff;
+    }
+    .buttons { margin: 12px 0; }
+    button {
+      margin-right: 10px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #0078d7, #005a9e);
+      color: #fff;
+      font-weight: bold;
+      transition: transform 0.2s, background 0.3s;
+    }
+    button:hover {
+      transform: scale(1.05);
+      background: linear-gradient(135deg, #3399ff, #0078d7);
+    }
+
+    .tab-buttons { margin-bottom: 15px; }
+    .tab-buttons button {
+      background: #333;
+      color: #ccc;
+    }
+    .tab-buttons button.active {
+      background: linear-gradient(135deg, #0078d7, #005a9e);
+      color: #fff;
+    }
+    .section { display: none; }
+    .section.active { display: block; }
+    #notification {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 40%;
+      background: #2e7d32;
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+      margin: 2vh;
+      font-weight: bold;
+      display: none;
+      z-index: 1000;
+      border-radius: 5px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div id="notification">Output copied!</div>
+
+  <h2>EzeeMe Encode/Decode Tool</h2>
+
+  <div class="tab-buttons">
+    <button id="decodeTab" onclick="showSection('decode')">Decode</button>
+    <button id="encodeTab" class="active" onclick="showSection('encode')">Encode</button>
+  </div>
+
+  <!-- Decode Section -->
+  <div id="decodeSection" class="section">
+    <h3>Paste Encoded Chapters JSON (arrays of numbers)</h3>
+      <textarea id="decodeInput" placeholder='{
+  "chapter1": [
+    [107, 119, 119, 115, 118, 61, 50, ...]
+  ]
+}'></textarea>
+    <div class="buttons">
+      <button onclick="decode()">Decode</button>
+      <button onclick="copyOutput('decodeOutput')">Copy</button>
+      <button onclick="clearAll('decodeInput','decodeOutput')">Clear</button>
+    </div>
+    <h3>Decoded Output</h3>
+    <pre id="decodeOutput"></pre>
+  </div>
+
+  <!-- Encode Section -->
+  <div id="encodeSection" class="section active">
+    <h3>Paste Plain Chapters JSON (strings/URLs)</h3>
+    <textarea id="encodeInput" placeholder=
+    '{
+  "chapter1": [
+    "https://res.cloudinary.com/db...",
+    "https://res.cloudinary.com/db..."
+  ]
+}'></textarea>
+    <div class="buttons">
+      <button onclick="encode()">Encode</button>
+      <button onclick="copyOutput('encodeOutput')">Copy</button>
+      <button onclick="clearAll('encodeInput','encodeOutput')">Clear</button>
+    </div>
+    <h3>Encoded Output</h3>
+    <pre id="encodeOutput"></pre>
+  </div>
+
+  <script>
+    // Tabs
+    function showSection(section) {
+      document.getElementById('decodeSection').classList.remove('active');
+      document.getElementById('encodeSection').classList.remove('active');
+      document.getElementById('decodeTab').classList.remove('active');
+      document.getElementById('encodeTab').classList.remove('active');
+      if (section === 'decode') {
+        document.getElementById('decodeSection').classList.add('active');
+        document.getElementById('decodeTab').classList.add('active');
+      } else {
+        document.getElementById('encodeSection').classList.add('active');
+        document.getElementById('encodeTab').classList.add('active');
+      }
+    }
+
+    // Loose parser for decode input (accepts single quotes and unquoted keys)
+    function parseLooseObject(text) {
+      try { return JSON.parse(text); } catch (_) {}
+      let normalized = text.replace(/'([^'\\]|\\.)*'/g, (m) => {
+        const inner = m.slice(1, -1).replace(/\\'/g, "'").replace(/"/g, '\\"');
+        return `"${inner}"`;
+      });
+      normalized = normalized.replace(/([{,\s])(\w+)\s*:/g, '$1"$2":');
+      return JSON.parse(normalized);
+    }
+
+    // Helpers
+    function decodeUrl(arr) { return String.fromCharCode(...arr.map(c => c - 3)); }
+    function encodeUrl(str) { return Array.from(str, ch => ch.charCodeAt(0) + 3); }
+
+    // Custom pretty printer: keeps arrays of numbers on a single line
+    function stringifyCompact(value, indent = 0) {
+      const pad = '  '.repeat(indent);
+      const nextPad = '  '.repeat(indent + 1);
+
+      if (value === null) return 'null';
+
+      if (Array.isArray(value)) {
+        const isNumbers = value.every(v => typeof v === 'number');
+        if (isNumbers) {
+          return '[' + value.join(', ') + ']';
+        }
+        // Array of non-numbers (e.g., strings or inner arrays)
+        if (value.length === 0) return '[]';
+        const parts = value.map(v => nextPad + stringifyCompact(v, indent + 1));
+        return '[\n' + parts.join(',\n') + '\n' + pad + ']';
+      }
+
+      if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return '{}';
+        const parts = keys.map(k => {
+          const v = stringifyCompact(value[k], indent + 1);
+          return `${nextPad}"${k}": ${v}`;
+        });
+        return '{\n' + parts.join(',\n') + '\n' + pad + '}';
+      }
+
+      // Primitive
+      if (typeof value === 'string') {
+        return JSON.stringify(value); // safely quote/escape
+      }
+      if (typeof value === 'number') return String(value);
+      if (typeof value === 'boolean') return value ? 'true' : 'false';
+      return 'null';
+    }
+
+    // Decode flow
+    function decode() {
+      const input = document.getElementById('decodeInput').value.trim();
+      if (!input) { showNotification('Please paste JSON first!'); return; }
+      try {
+        const chapters = parseLooseObject(input);
+        const decodedChapters = {};
+        for (const [chapterName, arrays] of Object.entries(chapters)) {
+          if (!Array.isArray(arrays)) throw new Error('Chapter must be an array');
+          decodedChapters[chapterName] = arrays.map(arr => {
+            if (!Array.isArray(arr)) throw new Error('Entry must be an array of numbers');
+            return decodeUrl(arr);
+          });
+        }
+        // Standard pretty JSON for decoded strings
+        document.getElementById('decodeOutput').textContent =
+          JSON.stringify(decodedChapters, null, 2);
+      } catch (e) { showNotification('Invalid input: ' + e.message); }
+    }
+
+    // Encode flow (inner number arrays in one line)
+    function encode() {
+      const input = document.getElementById('encodeInput').value.trim();
+      if (!input) { showNotification('Please paste JSON first!'); return; }
+      try {
+        const chapters = JSON.parse(input);
+        const encodedChapters = {};
+        for (const [chapterName, urls] of Object.entries(chapters)) {
+          if (!Array.isArray(urls)) throw new Error('Chapter must be an array of strings');
+          encodedChapters[chapterName] = urls.map(url => {
+            if (typeof url !== 'string') throw new Error('Entries must be strings');
+            return encodeUrl(url);
+          });
+        }
+        // Use custom printer so arrays of numbers are inline
+        const output = stringifyCompact(encodedChapters, 0);
+        document.getElementById('encodeOutput').textContent = output;
+      } catch (e) { showNotification('Invalid input: ' + e.message); }
+    }
+
+    // Copy output (uses displayed content; ensures JSON validity if possible)
+    function copyOutput(outputId) {
+      let output = document.getElementById(outputId).textContent;
+      if (!output) { showNotification('Nothing to copy!'); return; }
+      // Try to normalize if it's JSON: parse then re-stringify with our compact rules for consistency
+      try {
+        const parsed = JSON.parse(output);
+        output = stringifyCompact(parsed, 0);
+      } catch (_) {
+        // If not valid JSON (e.g., decoded strings), keep as-is
+      }
+      navigator.clipboard.writeText(output).then(() => {
+        showNotification('Output copied!');
+      }).catch(() => { showNotification('Copy failed.'); });
+    }
+
+    // Clear input/output
+    function clearAll(inputId, outputId) {
+      document.getElementById(inputId).value = '';
+      document.getElementById(outputId).textContent = '';
+    }
+
+    // Notification (auto-hide after 2s)
+    function showNotification(message) {
+      const bar = document.getElementById('notification');
+      bar.textContent = message;
+      bar.style.display = 'block';
+      clearTimeout(showNotification._t);
+      showNotification._t = setTimeout(() => { bar.style.display = 'none'; }, 2000);
+    }
+  </script>
+</body>
+</html>
