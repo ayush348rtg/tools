@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Char Code +3 Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #1e1e1e;
+      color: #eee;
+      border: 1px solid #444;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+    .button-group {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      flex: 1;
+      padding: 12px;
+      background: #2a2a2a;
+      color: #eee;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: #444;
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    pre {
+      background: #1e1e1e;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Char Code +3 Converter</h2>
+  <p>Paste any JSON or string below:</p>
+  <textarea id="input"></textarea>
+
+  <div class="button-group">
+    <button onclick="convert()">Convert</button>
+    <button onclick="copyResult()">Copy</button>
+    <button onclick="clearAll()">Clear</button>
+  </div>
+
+  <h3>Result (Char Codes +3):</h3>
+  <pre id="output"></pre>
+
+  <script>
+    function convert() {
+      const text = document.getElementById("input").value;
+      const codes = [];
+
+      for (let i = 0; i < text.length; i++) {
+        codes.push(text.charCodeAt(i) + 3);
+      }
+
+      document.getElementById("output").textContent = JSON.stringify(codes);
+    }
+
+    function copyResult() {
+      const output = document.getElementById("output").textContent;
+      if (output) {
+        navigator.clipboard.writeText(output).then(() => {
+          alert("Copied to clipboard!");
+        });
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("input").value = "";
+      document.getElementById("output").textContent = "";
+    }
+  </script>
+</body>
+</html>
